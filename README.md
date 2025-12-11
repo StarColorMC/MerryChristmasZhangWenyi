@@ -1,4 +1,4 @@
-# 🎄 Merry Christmas, Zhang Wenyi! 🎄
+# 🎄 圣诞快乐,张文译! 🎄
 
 一个精美的圣诞主题3D互动网页项目，使用Three.js构建，包含手势识别、摄像头互动等丰富功能。
 
