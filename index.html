@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Grand Luxury Tree - Christmas Edition</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+    <style>
+        body { 
+            margin: 0; overflow: hidden; 
+            background: radial-gradient(circle at center, #0f2027 0%, #203a43 50%, #2c5364 100%); 
+            background-color: #050d1a; 
+            font-family: 'Times New Roman', serif; 
+            touch-action: none; user-select: none; -webkit-user-select: none;
+        }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; cursor: grab; }
+        #canvas-container:active { cursor: grabbing; }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center;
+            padding-top: 40px; box-sizing: border-box;
+            transition: opacity 0.5s ease;
+        }
+        .ui-hidden { opacity: 0 !important; pointer-events: none !important; }
+
+        #loader {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050d1a; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.8s ease-out;
+        }
+        .loader-text {
+            color: #d4af37; font-size: 14px; letter-spacing: 4px; margin-top: 20px;
+            text-transform: uppercase; font-weight: 100;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 1px solid rgba(212, 175, 55, 0.2); 
+            border-top: 1px solid #d4af37; border-radius: 50%; 
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        h1 { 
+            color: #fceea7; font-size: 8vw; margin: 0; font-weight: 400; 
+            letter-spacing: 6px; text-shadow: 0 0 50px rgba(252, 238, 167, 0.6); 
+            background: linear-gradient(to bottom, #fff, #eebb66);
+            background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-family: 'Cinzel', 'Times New Roman', serif;
+            opacity: 0.9; pointer-events: none; text-align: center;
+        }
+        @media (min-width: 768px) { h1 { font-size: 56px; } }
+
+        .controls-wrapper {
+            position: absolute; top: 100px; right: 20px;        
+            pointer-events: auto;
+            display: none;
+        }
+
+        input[type="file"] { display: none; }
+        
+        .upload-btn:hover {
+            background: rgba(212, 175, 55, 0.4) !important;
+            border-color: rgba(212, 175, 55, 0.8) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        #mode-bar {
+            position: absolute; bottom: 30px; left: 50%;
+            transform: translateX(-50%); display: none;
+            gap: 15px;
+            z-index: 20; pointer-events: auto;
+        }
+        
+        #webcam-wrapper {
+            position: absolute; bottom: 30px; right: 20px;         
+            width: 200px; height: 150px;
+            border: 1px solid rgba(212, 175, 55, 0.5); 
+            box-shadow: 0 0 20px rgba(0,0,0,0.9);
+            border-radius: 4px; overflow: hidden; 
+            opacity: 0; pointer-events: none;
+            z-index: 50; background: #000; transition: opacity 0.5s ease; 
+        }
+        #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+        #debug-info {
+            position: absolute; bottom: 5px; left: 5px;
+            color: rgba(212, 175, 55, 0.6); font-size: 10px;
+            font-family: monospace; pointer-events: none; z-index: 51;
+            width: 100%; text-align: center;
+        }
+        #settings-toggle {
+            position: fixed; top: 20px; right: 20px;
+            z-index: 100; pointer-events: auto;
+            width: 45px; height: 45px;
+            background: rgba(8, 15, 25, 0.85);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        #settings-toggle:hover {
+            background: rgba(8, 15, 25, 0.95);
+            border-color: rgba(212, 175, 55, 0.7);
+            transform: rotate(90deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.3);
+        }
+        #settings-toggle i {
+            color: #d4af37;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+        #settings-panel {
+            position: fixed; top: 75px; right: 20px;
+            z-index: 99; pointer-events: auto;
+            background: rgba(8, 15, 25, 0.95);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            min-width: 250px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+            display: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+        #settings-panel.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .settings-title {
+            color: #d4af37;
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            padding-bottom: 10px;
+        }
+        #settings-panel #volume-control {
+            margin-top: 10px;
+        }
+        #settings-panel #volume-control > div:first-child {
+            margin-bottom: 15px;
+        }
+        #fullscreen-btn {
+            position: absolute; bottom: 90px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 30; pointer-events: auto;
+        }
+        
+        #msg-box {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9); border: 1px solid #d4af37;
+            padding: 20px; color: #d4af37;
+            z-index: 200; text-align: center;
+            display: none; border-radius: 8px; min-width: 200px;
+        }
+
+        #footer-stats {
+            position: absolute; bottom: 25px; right: 25px;
+            z-index: 40; pointer-events: auto;
+            display: flex; flex-direction: column; gap: 12px;
+            background: rgba(8, 15, 25, 0.75);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 15px; border-radius: 12px;
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            width: 200px; transition: all 0.3s ease;
+            opacity: 1; transform: translateY(0);
+        }
+        .map-container {
+            width: 100%; height: 100px; overflow: hidden;
+            border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative; background: #000;
+        }
+        .map-container script, .map-container iframe, .map-container img {
+            filter: opacity(0.9) contrast(1.1); transition: filter 0.3s;
+        }
+        .map-container:hover script, .map-container:hover iframe { filter: opacity(1) contrast(1); }
+        .stats-title {
+            font-family: 'Cinzel', serif; color: rgba(212, 175, 55, 0.9);
+            font-size: 10px; letter-spacing: 2px; text-align: center;
+            margin-bottom: 5px; border-bottom: 1px solid rgba(212, 175, 55, 0.15); padding-bottom: 5px;
+        }
+        .stats-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #ccc; }
+        .stats-item { display: flex; align-items: center; gap: 6px; }
+        .stats-value {
+            font-family: 'Cinzel', serif; color: #fff;
+            font-weight: bold; font-size: 14px; text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            #settings-toggle {
+                top: 15px;
+                right: 15px;
+                width: 40px;
+                height: 40px;
+            }
+            #settings-toggle i {
+                font-size: 18px;
+            }
+            #settings-panel {
+                top: 65px;
+                right: 15px;
+                left: 15px;
+                min-width: auto;
+                padding: 20px;
+            }
+        }
+    </style>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');</style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="loader-text">Loading Memories & Music...</div>
+    </div>
+    
+    <div id="msg-box"></div>
+    <div id="canvas-container"></div>
+    <audio id="bg-music" loop style="display:none"></audio>
+
+    <div id="ui-layer">
+        <h1>Merry Christmas, Zhang Wenyi!</h1>
+        
+        <!-- 设置按钮 -->
+        <button id="settings-toggle" title="设置">
+            <i class="fas fa-cog"></i>
+        </button>
+        
+        <!-- 设置面板 -->
+        <div id="settings-panel">
+            <div class="settings-title">⚙️ 设置</div>
+            <div id="volume-control">
+                <div style="color: #d4af37; font-size: 14px; margin-bottom: 15px; text-align: center; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-volume-up"></i>
+                    <span>音量</span>
+                </div>
+                <input type="range" id="volume-slider" min="0" max="100" value="50" style="width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(212, 175, 55, 0.2); border-radius: 3px; outline: none; cursor: pointer;">
+                <div id="volume-value" style="color: rgba(212, 175, 55, 0.8); font-size: 12px; text-align: center; margin-top: 10px;">50%</div>
+                <style>
+                    #volume-slider::-webkit-slider-thumb {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        width: 16px;
+                        height: 16px;
+                        background: #d4af37;
+                        border-radius: 50%;
+                        cursor: pointer;
+                        box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+                    }
+                    #volume-slider::-moz-range-thumb {
+                        width: 16px;
+                        height: 16px;
+                        background: #d4af37;
+                        border-radius: 50%;
+                        cursor: pointer;
+                        border: none;
+                        box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+                    }
+                </style>
+            </div>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(212, 175, 55, 0.3);">
+                <button id="open-music-player" style="width: 100%; padding: 12px; background: rgba(212, 175, 55, 0.2); border: 1px solid rgba(212, 175, 55, 0.5); border-radius: 8px; color: #d4af37; cursor: pointer; font-size: 14px; transition: all 0.3s;">
+                    <i class="fas fa-music"></i> 打开音乐播放器
+                </button>
+            </div>
+        </div>
+        
+        <!-- 音乐播放器面板 -->
+        <div id="music-player-panel" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 13, 26, 0.98); z-index: 200; display: none; flex-direction: column; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 1; transition: opacity 0.3s ease;">
+            <div style="padding: 20px; border-bottom: 1px solid rgba(212, 175, 55, 0.3); display: flex; justify-content: space-between; align-items: center; background: rgba(8, 15, 25, 0.9);">
+                <h2 style="color: #d4af37; margin: 0; font-size: 20px; font-family: 'Cinzel', serif; letter-spacing: 2px;">🎵 酷狗音乐歌单</h2>
+                <button id="close-music-player" style="background: rgba(212, 175, 55, 0.2); border: 1px solid rgba(212, 175, 55, 0.5); border-radius: 8px; color: #d4af37; padding: 10px 20px; cursor: pointer; font-size: 14px; transition: all 0.3s; font-weight: bold;">✕ 关闭</button>
+            </div>
+            
+            <!-- 自定义播放器内容 -->
+            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <!-- 播放器控制区 -->
+                <div style="padding: 30px; background: rgba(8, 15, 25, 0.7); border-bottom: 1px solid rgba(212, 175, 55, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                        <button id="play-pause-btn" style="width: 60px; height: 60px; border-radius: 50%; background: rgba(212, 175, 55, 0.3); border: 2px solid #d4af37; color: #d4af37; font-size: 24px; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center;">▶</button>
+                        <button id="prev-btn" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(212, 175, 55, 0.2); border: 1px solid rgba(212, 175, 55, 0.5); color: #d4af37; font-size: 20px; cursor: pointer; transition: all 0.3s;">⏮</button>
+                        <button id="next-btn" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(212, 175, 55, 0.2); border: 1px solid rgba(212, 175, 55, 0.5); color: #d4af37; font-size: 20px; cursor: pointer; transition: all 0.3s;">⏭</button>
+                        <div style="flex: 1; margin-left: 20px;">
+                            <div id="current-song-info" style="color: #d4af37; font-size: 18px; font-weight: bold; margin-bottom: 10px;">请选择歌曲</div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span id="current-time" style="color: rgba(212, 175, 55, 0.8); font-size: 14px; min-width: 50px;">00:00</span>
+                                <div style="flex: 1; height: 6px; background: rgba(212, 175, 55, 0.2); border-radius: 3px; position: relative; cursor: pointer;" id="progress-bar">
+                                    <div id="progress-fill" style="height: 100%; background: #d4af37; border-radius: 3px; width: 0%; transition: width 0.1s;"></div>
+                                </div>
+                                <span id="total-time" style="color: rgba(212, 175, 55, 0.8); font-size: 14px; min-width: 50px;">00:00</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="color: rgba(212, 175, 55, 0.8); font-size: 14px;">音量</span>
+                            <input type="range" id="music-volume-control" min="0" max="100" value="70" style="width: 100px; cursor: pointer;">
+                        </div>
+                    </div>
+                    <audio id="audio-player" preload="metadata" style="display: none;"></audio>
+                </div>
+                
+                <!-- 播放列表 -->
+                <div style="flex: 1; overflow-y: auto; padding: 20px;">
+                    <div id="playlist-loading" style="text-align: center; color: #d4af37; padding: 40px; font-size: 16px; transition: opacity 0.3s ease;">
+                        <div style="margin-bottom: 10px;">⏳ 正在加载歌单...</div>
+                    </div>
+                    <div id="playlist-container" style="display: none; opacity: 0; transition: opacity 0.3s ease;">
+                        <div style="color: rgba(212, 175, 55, 0.8); font-size: 14px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(212, 175, 55, 0.2);">
+                            共 <span id="playlist-count">0</span> 首歌曲
+                        </div>
+                        <div id="playlist" style="display: grid; gap: 10px;"></div>
+                    </div>
+                    <div id="playlist-error" style="display: none; opacity: 0; text-align: center; color: rgba(255, 100, 100, 0.9); padding: 40px; font-size: 16px; transition: opacity 0.3s ease;">
+                        <div style="margin-bottom: 10px;">❌ 无法加载歌单</div>
+                        <button onclick="loadPlaylist()" style="background: rgba(212, 175, 55, 0.2); border: 1px solid rgba(212, 175, 55, 0.5); border-radius: 8px; color: #d4af37; padding: 10px 20px; cursor: pointer; margin-top: 10px;">重试</button>
+                        <div style="margin-top: 20px; font-size: 14px; color: rgba(212, 175, 55, 0.7);">
+                            <a href="https://t1.kugou.com/20gHF59EwV3" target="_blank" style="color: #d4af37; text-decoration: underline;">在新窗口打开歌单</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mode-bar" style="display: none;">
+            <div class="mode-btn" onclick="setMode('TREE')" title="树形模式">🎄</div>
+            <div class="mode-btn" onclick="setMode('SCATTER')" title="散射模式">✨</div>
+            <div class="mode-btn" onclick="setMode('FOCUS_RANDOM')" title="焦点模式">🔍</div>
+        </div>
+
+        <div id="footer-stats" class="ui-hidden">
+            <div class="stats-title">WORLDWIDE VISITORS</div>
+            <div class="map-container">
+                <script type="text/javascript" id="mapmyvisitors" src="//mapmyvisitors.com/map.js?d=Do5RNQV8KlQIBDC7M2nqc53ejNLOcqy_Rhe1sAITZa8&cl=d4af37&w=a"></script>
+            </div>
+            <div class="stats-row">
+                <div class="stats-item" title="Total Page Views">
+                    <i class="fas fa-eye" style="color: #64ffda;"></i>
+                    <span id="busuanzi_container_site_pv" style="display:none">
+                        <span id="busuanzi_value_site_pv" class="stats-value">...</span>
+                    </span>
+                </div>
+                <div class="stats-item" title="Total Visitors">
+                    <i class="fas fa-user" style="color: #d4af37;"></i>
+                    <span id="busuanzi_container_site_uv" style="display:none">
+                        <span id="busuanzi_value_site_uv" class="stats-value">...</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="webcam-wrapper">
+        <video id="webcam" autoplay playsinline webkit-playsinline></video>
+    </div>
+    <div id="debug-info">提示：拖动旋转 • 点击照片查看</div>
+    <div id="fullscreen-btn">
+        <div class="control-btn">⛶ 全屏</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; 
+        import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+        const CONFIG = {
+            colors: {
+                bg: 0x050d1a, fog: 0x050d1a,
+                champagneGold: 0xffd966, deepGreen: 0x03180a, accentRed: 0x990000,     
+            },
+            particles: {
+                count: 1500, dustCount: 2000, snowCount: 1000,
+                treeHeight: 24, treeRadius: 8    
+            },
+            camera: { z: 50 },
+            preload: {
+                autoScanLocal: true, scanCount: 50,
+                images: []
+            },
+            presetMusic: [
+                // 梁博
+                { name: "日落大道 - 梁博", url: "./music/日落大道-梁博.mp3" },
+                { name: "曾经是情侣 (Live) - 梁博", url: "./music/曾经是情侣-梁博.mp3" },
+                { name: "表态 (Live) - 梁博", url: "./music/表态-梁博.mp3" },
+                { name: "出现又离开 (Live) - 梁博", url: "./music/出现又离开-梁博.mp3" },
+                
+                // 宋冬野
+                { name: "董小姐 - 宋冬野", url: "./music/董小姐-宋冬野.mp3" },
+                { name: "安和桥 - 宋冬野", url: "./music/安和桥-宋冬野.mp3" },
+                
+                // 赵雷
+                { name: "鼓楼 - 赵雷", url: "./music/鼓楼-赵雷.mp3" },
+                
+                // 孙燕姿
+                { name: "我怀念的 - 孙燕姿", url: "./music/我怀念的-孙燕姿.mp3" },
+                { name: "我不难过 - 孙燕姿", url: "./music/我不难过-孙燕姿.mp3" },
+                
+                // 蔡健雅
+                { name: "下一次爱情来的时候 - 蔡健雅", url: "./music/下一次爱情来的时候-蔡健雅.mp3" },
+                { name: "下次见 - 蔡健雅", url: "./music/下次见-蔡健雅.mp3" },
+                { name: "达尔文 - 蔡健雅", url: "./music/达尔文-蔡健雅.mp3" },
+                
+                // 王若琳
+                { name: "迷宫 - 王若琳", url: "./music/迷宫-王若琳.mp3" },
+                
+                // 李荣浩
+                { name: "戒烟 - 李荣浩", url: "./music/戒烟-李荣浩.mp3" },
+                { name: "不遗憾 - 李荣浩", url: "./music/不遗憾-李荣浩.mp3" },
+                { name: "走走 - 李荣浩", url: "./music/走走-李荣浩.mp3" },
+                { name: "阴天 (Live) - 李荣浩", url: "./music/阴天-李荣浩.mp3" },
+                { name: "女儿国 - 张靓颖、李荣浩", url: "./music/女儿国-张靓颖李荣浩.mp3" },
+                
+                // 周杰伦
+                { name: "分裂 - 周杰伦", url: "./music/分裂-周杰伦.mp3" },
+                { name: "说好不哭 (with 五月天阿信) - 周杰伦", url: "./music/说好不哭-周杰伦.mp3" },
+                { name: "我不配 - 周杰伦", url: "./music/我不配-周杰伦.mp3" },
+                { name: "怎么了 - 周杰伦、袁咏琳", url: "./music/怎么了-周杰伦袁咏琳.mp3" },
+                { name: "一点点 - 周杰伦", url: "./music/一点点-周杰伦.mp3" },
+                { name: "晴天 - 周杰伦", url: "./music/晴天-周杰伦.mp3" },
+                { name: "画沙 - 周杰伦、袁咏琳", url: "./music/画沙-周杰伦袁咏琳.mp3" },
+                
+                // 五月天
+                { name: "我不愿让你一个人 - 五月天", url: "./music/我不愿让你一个人-五月天.mp3" },
+                { name: "青空未来 - 五月天 阿信", url: "./music/青空未来-五月天阿信.mp3" },
+                { name: "步步 - 五月天", url: "./music/步步-五月天.mp3" },
+                
+                // 薛之谦
+                { name: "最好 - 薛之谦", url: "./music/最好-薛之谦.mp3" },
+                { name: "几个你 - 薛之谦", url: "./music/几个你-薛之谦.mp3" },
+                
+                // 林俊杰
+                { name: "Like You Do - 林俊杰", url: "./music/LikeYouDo-林俊杰.mp3" },
+                
+                // 林宥嘉
+                { name: "说谎 - 林宥嘉", url: "./music/说谎-林宥嘉.mp3" },
+                
+                // 陈奕迅
+                { name: "你的背包 - 陈奕迅", url: "./music/你的背包-陈奕迅.mp3" },
+                
+                // 王力宏
+                { name: "Kiss Goodbye - 王力宏", url: "./music/KissGoodbye-王力宏.mp3" },
+                { name: "你不知道的事 - 王力宏", url: "./music/你不知道的事-王力宏.mp3" },
+                
+                // 黎明
+                { name: "我可以忘记你 - 黎明", url: "./music/我可以忘记你-黎明.mp3" },
+                
+                // 回音哥
+                { name: "对不起,我还爱你 - 回音哥", url: "./music/对不起我还爱你-回音哥.mp3" },
+                
+                // The Weeknd
+                { name: "Reminder (Explicit) - The Weeknd", url: "./music/Reminder-TheWeeknd.mp3" },
+                
+                // 毛不易
+                { name: "一程山路 - 毛不易", url: "./music/一程山路-毛不易.mp3" },
+                
+                // 郑润泽
+                { name: "瞬 - 郑润泽", url: "./music/瞬-郑润泽.mp3" },
+                
+                // 单依纯
+                { name: "想你时风起 - 单依纯", url: "./music/想你时风起-单依纯.mp3" },
+                
+                // 沈以诚
+                { name: "我还记得那天 - 沈以诚", url: "./music/我还记得那天-沈以诚.mp3" },
+                
+                // 法老、阿达娃
+                { name: "星空叙爱曲 - 法老、阿达娃", url: "./music/星空叙爱曲-法老阿达娃.mp3" },
+                
+                // MC HotDog 热狗
+                { name: "我只在乎你2.0 (Live) - MC HotDog 热狗", url: "./music/我只在乎你2.0-MCHotDog.mp3" },
+                
+                // 鹿晗
+                { name: "如果 What if I said - 鹿晗", url: "./music/如果-鹿晗.mp3" },
+                
+                // 黄霄雲
+                { name: "要不然我们就这样一万年 - 黄霄雲", url: "./music/要不然我们就这样一万年-黄霄雲.mp3" },
+                
+                // Capper
+                { name: "因为 - Capper", url: "./music/因为-Capper.mp3" },
+                
+                // J.Sheon
+                { name: "输情歌 - J.Sheon", url: "./music/输情歌-JSheon.mp3" },
+                
+                // 郑鱼
+                { name: "八小时时差 - 郑鱼", url: "./music/八小时时差-郑鱼.mp3" },
+                
+                // 徐良
+                { name: "那时雨 - 徐良", url: "./music/那时雨-徐良.mp3" },
+                
+                // 痛仰乐队
+                { name: "西湖 - 痛仰乐队", url: "./music/西湖-痛仰乐队.mp3" },
+                { name: "为你唱首歌 - 痛仰乐队", url: "./music/为你唱首歌-痛仰乐队.mp3" },
+                
+                // 告五人
+                { name: "带我去找夜生活 - 告五人", url: "./music/带我去找夜生活-告五人.mp3" },
+                
+                // TizzyT
+                { name: "100 - TizzyT", url: "./music/100-TizzyT.mp3" },
+                
+                // 卫兰
+                { name: "大哥 - 卫兰", url: "./music/大哥-卫兰.mp3" },
+                
+                // h3R3、张鑫
+                { name: "先说谎的人 - h3R3、张鑫", url: "./music/先说谎的人-h3R3张鑫.mp3" },
+                
+                // 李慧珍、吉克隽逸
+                { name: "错的人 (Live) - 李慧珍、吉克隽逸", url: "./music/错的人-李慧珍吉克隽逸.mp3" },
+                
+                // 孟慧圆
+                { name: "想念拟人化 - 孟慧圆", url: "./music/想念拟人化-孟慧圆.mp3" },
+                
+                // 陈柏宇
+                { name: "你瞒我瞒 - 陈柏宇", url: "./music/你瞒我瞒-陈柏宇.mp3" },
+                
+                // 张惠妹
+                { name: "如果你也听说 - 张惠妹", url: "./music/如果你也听说-张惠妹.mp3" },
+                
+                // 陶喆
+                { name: "普通朋友 - 陶喆", url: "./music/普通朋友-陶喆.mp3" },
+                { name: "蝴蝶 - 陶喆", url: "./music/蝴蝶-陶喆.mp3" },
+                
+                // 曹杨
+                { name: "微光 (Live) - 曹杨", url: "./music/微光-曹杨.mp3" },
+                
+                // 南拳妈妈
+                { name: "你不像她 - 南拳妈妈", url: "./music/你不像她-南拳妈妈.mp3" },
+                { name: "下雨天 - 南拳妈妈", url: "./music/下雨天-南拳妈妈.mp3" },
+                
+                // 阿桑
+                { name: "叶子 - 阿桑", url: "./music/叶子-阿桑.mp3" },
+                
+                // 后弦
+                { name: "下完这场雨 - 后弦", url: "./music/下完这场雨-后弦.mp3" },
+                
+                // 茜拉
+                { name: "到时说爱我 - 茜拉(Shila Amzah)", url: "./music/到时说爱我-茜拉.mp3" },
+                
+                // Eric周兴哲
+                { name: "Me and You (Remastered) - Eric周兴哲", url: "./music/MeAndYou-Eric周兴哲.mp3" },
+                
+                // 杨丞琳
+                { name: "雨爱 - 杨丞琳", url: "./music/雨爱-杨丞琳.mp3" },
+                
+                // 李大奔BENZO
+                { name: "颜如玉 - 李大奔BENZO", url: "./music/颜如玉-李大奔BENZO.mp3" },
+                
+                // Meg Myers
+                { name: "Running Up That Hill - Meg Myers", url: "./music/RunningUpThatHill-MegMyers.mp3" },
+                
+                // Charlie Puth
+                { name: "We Don't Talk Anymore - Charlie Puth、Selena Gomez", url: "./music/WeDontTalkAnymore-CharliePuth.mp3" },
+                
+                // 于昊洋
+                { name: "单程票 - 于昊洋", url: "./music/单程票-于昊洋.mp3" },
+                
+                // 邱振哲
+                { name: "太阳 - 邱振哲(Qiu Pika)", url: "./music/太阳-邱振哲.mp3" },
+                
+                // 周公
+                { name: "不说 - 周公", url: "./music/不说-周公.mp3" },
+                
+                // 欧瑞SoulCore、奉天组
+                { name: "Sophie - 欧瑞SoulCore、奉天组", url: "./music/Sophie-欧瑞SoulCore奉天组.mp3" },
+                
+                // 黑羊
+                { name: "末班车 - 黑羊", url: "./music/末班车-黑羊.mp3" },
+                
+                // BIGBANG、朴春
+                { name: "Forever With You - BIGBANG、朴春", url: "./music/ForeverWithYou-BIGBANG朴春.mp3" }
+
+            ],
+            presetImages: [
+                "./baby/微信图片_20251211120035_104_65.jpg",
+                "./baby/微信图片_20251211120038_105_65.jpg",
+                "./baby/微信图片_20251211120039_106_65.jpg",
+                "./baby/微信图片_20251211120041_107_65.jpg",
+                "./baby/微信图片_20251211120042_108_65.jpg",
+                "./baby/微信图片_20251211120044_109_65.jpg",
+                "./baby/微信图片_20251211120048_110_65.jpg",
+                "./baby/微信图片_20251211120050_111_65.jpg",
+                "./baby/微信图片_20251211120053_112_65.jpg",
+                "./baby/微信图片_20251211120055_113_65.jpg",
+                "./baby/微信图片_20251211120057_114_65.jpg",
+                "./baby/微信图片_20251211120059_115_65.jpg",
+                "./baby/微信图片_20251211120100_116_65.jpg",
+                "./baby/微信图片_20251211120101_117_65.jpg",
+                "./baby/微信图片_20251211120103_118_65.png",
+                "./baby/微信图片_20251211120105_119_65.jpg",
+                "./baby/微信图片_20251211120107_120_65.jpg",
+                "./baby/微信图片_20251211120110_121_65.jpg",
+                "./baby/微信图片_20251211120112_122_65.jpg",
+                "./baby/微信图片_20251211120113_123_65.jpg",
+                "./baby/微信图片_20251211120114_124_65.jpg",
+                "./baby/微信图片_20251211120116_125_65.jpg",
+                "./baby/微信图片_20251211120118_126_65.jpg",
+                "./baby/微信图片_20251211120122_127_65.jpg",
+                "./baby/微信图片_20251211120123_128_65.jpg",
+                "./baby/微信图片_20251211120125_129_65.jpg",
+                "./baby/微信图片_20251211120127_130_65.jpg",
+                "./baby/微信图片_20251211120128_131_65.jpg",
+                "./baby/微信图片_20251211120130_132_65.jpg",
+                "./baby/微信图片_20251211120134_133_65.jpg",
+                "./baby/微信图片_20251211120135_134_65.jpg",
+                "./baby/微信图片_20251211120138_135_65.jpg",
+                "./baby/微信图片_20251211120143_136_65.jpg",
+                "./baby/微信图片_20251211120145_137_65.jpg",
+                "./baby/微信图片_20251211120146_138_65.jpg",
+                "./baby/微信图片_20251211120148_139_65.jpg",
+                "./baby/微信图片_20251211120151_140_65.jpg",
+                "./baby/微信图片_20251211120152_141_65.jpg",
+                "./baby/微信图片_20251211120154_142_65.jpg"
+            ]
+        };
+
+        const STATE = {
+            mode: 'TREE', focusIndex: -1, focusTarget: null,
+            hand: { detected: false, x: 0, y: 0 },
+            rotation: { x: 0, y: 0 },
+            touch: { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 },
+            music: { hasTrack: false, playing: false, tracks: [] },
+            webcamVisible: true,
+            lastRandomPhotoId: null
+        };
+
+        const AppDB = {
+            dbName: 'GrandLuxuryTreeDB',
+            version: 3,
+            
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+                    
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('photos')) {
+                            db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!db.objectStoreNames.contains('music')) {
+                            db.createObjectStore('music', { keyPath: 'id', autoIncrement: true });
+                        }
+                    };
+                    request.onsuccess = (e) => {
+                        this.db = e.target.result;
+                        console.log("Storage System Online (v3 - Multi-Music Support)");
+                        resolve();
+                    };
+                    request.onerror = (e) => reject(e);
+                });
+            },
+
+            savePhoto(dataUrl) {
+                if (!this.db) return;
+                const tx = this.db.transaction(['photos'], 'readwrite');
+                tx.objectStore('photos').add({ data: dataUrl, date: new Date().toISOString() });
+            },
+
+            loadPhotos(callback) {
+                if (!this.db) return;
+                const tx = this.db.transaction(['photos'], 'readonly');
+                const request = tx.objectStore('photos').getAll();
+                request.onsuccess = () => { if (request.result) callback(request.result); };
+            },
+
+            saveMusic(dataUrl, name) {
+                if (!this.db) return;
+                const tx = this.db.transaction(['music'], 'readwrite');
+                tx.objectStore('music').add({ data: dataUrl, name: name, date: new Date().toISOString() });
+            },
+
+            loadAllMusic(callback) {
+                if (!this.db) return;
+                const tx = this.db.transaction(['music'], 'readonly');
+                const request = tx.objectStore('music').getAll();
+                request.onsuccess = () => { if (request.result) callback(request.result); };
+            },
+
+            loadMusic(callback) {
+                this.loadAllMusic((allMusic) => {
+                    if (allMusic && allMusic.length > 0) {
+                        callback(allMusic[0]);
+                    }
+                });
+            },
+
+            clear() {
+                if (!this.db) return;
+                const tx = this.db.transaction(['photos', 'music'], 'readwrite');
+                tx.objectStore('photos').clear();
+                tx.objectStore('music').clear();
+                showMsg("已清空全部图片与音乐");
+                setTimeout(() => location.reload(), 1500);
+            }
+        };
+
+        let scene, camera, renderer, composer;
+        let mainGroup; 
+        let clock = new THREE.Clock();
+        let particleSystem = []; 
+        let photoMeshGroup = new THREE.Group();
+        let handLandmarker, video;
+        let caneTexture; 
+        let snowSystem;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        
+        const debugInfo = document.getElementById('debug-info');
+        const webcamToggleBtn = document.getElementById('webcam-toggle-btn');
+        const webcamWrapper = document.getElementById('webcam-wrapper');
+        const audioElement = document.getElementById('bg-music');
+        const settingsToggleBtn = document.getElementById('toggle-settings-btn');
+        const controlsWrapper = document.querySelector('.controls-wrapper');
+        const fullscreenBtnEl = document.querySelector('#fullscreen-btn .control-btn');
+        const fullscreenContainer = document.getElementById('fullscreen-btn');
+        const modeBar = document.getElementById('mode-bar');
+        let isCameraRunning = false;
+
+        window.setMode = (mode) => {
+            if (mode === 'FOCUS_RANDOM') {
+                STATE.mode = 'FOCUS';
+                const next = pickRandomPhoto(STATE.focusTarget);
+                if (next) {
+                    STATE.focusTarget = next;
+                    STATE.lastRandomPhotoId = next.id;
+                }
+            } else {
+                STATE.mode = mode;
+                if (mode === 'TREE') STATE.focusTarget = null;
+            }
+        };
+
+        function pickRandomPhoto(excludeMesh = null) {
+            const photos = particleSystem.filter(p => p.type === 'PHOTO');
+            if (!photos.length) return null;
+            if (photos.length === 1) return photos[0].mesh;
+            let candidate = null;
+            let attempts = 0;
+            while (attempts < 10) {
+                const p = photos[Math.floor(Math.random() * photos.length)].mesh;
+                if (p !== excludeMesh) { candidate = p; break; }
+                attempts++;
+            }
+            return candidate || photos[0].mesh;
+        }
+
+        async function init() {
+            await AppDB.init();
+
+            initThree();
+            setupEnvironment(); 
+            setupLights();
+            createTextures();
+            createParticles(); 
+            createDust();
+            createSnow();
+            setupPostProcessing();
+            setupEvents();
+            setupTouchAndClick(); 
+            if (webcamToggleBtn) webcamToggleBtn.innerText = "👁️ 隐藏摄像头画面";
+            initMediaPipe(true);
+            
+            loadPredefinedImages();
+            loadPresetMusic();
+            loadPresetImages();
+
+            const loader = document.getElementById('loader');
+            loader.style.opacity = 0;
+            setTimeout(() => loader.remove(), 800);
+
+            animate();
+        }
+
+        function loadPresetMusic() {
+            if (CONFIG.presetMusic.length === 0) {
+                console.log("未配置预设音乐");
+                return;
+            }
+            
+            CONFIG.presetMusic.forEach((music, index) => {
+                STATE.music.tracks.push({
+                    data: music.url,
+                    name: music.name || `音乐${index + 1}`
+                });
+            });
+            
+            STATE.music.hasTrack = STATE.music.tracks.length > 0;
+            if (STATE.music.tracks.length > 0) {
+                audioElement.src = STATE.music.tracks[0].data;
+                audioElement.volume = 0.5;
+            }
+            console.log(`已加载 ${STATE.music.tracks.length} 首预设音乐`);
+        }
+
+        function loadPresetImages() {
+            if (CONFIG.presetImages.length === 0) {
+                console.log("未配置预设图片");
+                return;
+            }
+            
+            const loader = new THREE.TextureLoader();
+            CONFIG.presetImages.forEach((imageUrl, index) => {
+                loader.load(
+                    imageUrl,
+                    (texture) => {
+                        texture.colorSpace = THREE.SRGBColorSpace;
+                        addPhotoToScene(texture);
+                    },
+                    undefined,
+                    (error) => {
+                        console.warn(`加载图片失败: ${imageUrl}`, error);
+                    }
+                );
+            });
+            console.log(`开始加载 ${CONFIG.presetImages.length} 张预设图片`);
+        }
+
+        function playRandomMusic() {
+            if (STATE.music.tracks.length === 0) {
+                showMsg("暂无音乐");
+                return;
+            }
+            
+            if (!audioElement.paused) {
+                audioElement.pause();
+            }
+            
+            const randomTrack = STATE.music.tracks[Math.floor(Math.random() * STATE.music.tracks.length)];
+            const musicUrl = randomTrack.data || randomTrack.url;
+            
+            if (!musicUrl) {
+                console.warn("音乐URL为空:", randomTrack);
+                showMsg("音乐文件无效");
+                return;
+            }
+            
+            audioElement.src = musicUrl;
+            audioElement.currentTime = 0;
+            audioElement.load();
+            
+            const playPromise = audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    STATE.music.playing = true;
+                    const trackName = randomTrack.name || '未知音乐';
+                    showMsg(`正在播放：${trackName.substring(0, 20)}...`);
+                    console.log("音乐播放成功:", trackName);
+                }).catch(e => {
+                    console.error("播放音乐失败:", e);
+                    showMsg("播放失败，请检查音乐文件路径");
+                });
+            }
+        }
+
+        function setupTouchAndClick() {
+            const container = document.getElementById('canvas-container');
+            container.addEventListener('pointerdown', (e) => {
+                STATE.touch.active = true;
+                STATE.touch.startX = e.clientX;
+                STATE.touch.startY = e.clientY;
+                STATE.touch.lastX = e.clientX;
+                STATE.touch.lastY = e.clientY;
+            });
+            window.addEventListener('pointermove', (e) => {
+                if (!STATE.touch.active) return;
+                const deltaX = e.clientX - STATE.touch.lastX;
+                const deltaY = e.clientY - STATE.touch.lastY;
+                STATE.rotation.y += deltaX * 0.005;
+                STATE.rotation.x += deltaY * 0.002;
+                STATE.rotation.x = Math.max(-0.5, Math.min(0.5, STATE.rotation.x));
+                STATE.touch.lastX = e.clientX;
+                STATE.touch.lastY = e.clientY;
+            });
+            window.addEventListener('pointerup', (e) => {
+                STATE.touch.active = false;
+            });
+            container.addEventListener('click', (e) => {
+                // 检查是否有移动，如果移动距离太大则认为是拖拽而不是点击
+                const moveDist = (STATE.touch.startX !== undefined && STATE.touch.startY !== undefined) 
+                    ? Math.hypot(e.clientX - STATE.touch.startX, e.clientY - STATE.touch.startY)
+                    : 0;
+                if (moveDist > 15) return; 
+                
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                
+                // 优先检测照片组中的所有对象
+                const intersects = raycaster.intersectObjects(photoMeshGroup.children, true);
+                
+                let clickedPhoto = null;
+                for (let hit of intersects) {
+                    let obj = hit.object;
+                    // 向上查找直到找到 photoMeshGroup 的直接子对象（照片 group）
+                    while (obj.parent && obj.parent !== photoMeshGroup) {
+                        obj = obj.parent;
+                    }
+                    // 如果找到的是 photoMeshGroup 的直接子对象，那就是照片
+                    if (obj.parent === photoMeshGroup) {
+                        const particle = particleSystem.find(p => p.mesh === obj && p.type === 'PHOTO');
+                        if (particle) { 
+                            clickedPhoto = particle; 
+                            break; 
+                        }
+                    }
+                }
+                
+                // 如果照片组检测失败，尝试检测整个场景（备用方案）
+                if (!clickedPhoto && photoMeshGroup.children.length > 0) {
+                    const allIntersects = raycaster.intersectObjects(mainGroup.children, true);
+                    for (let hit of allIntersects) {
+                        let obj = hit.object;
+                        // 向上查找照片 group
+                        while (obj.parent && obj.parent !== photoMeshGroup && obj.parent !== mainGroup) {
+                            obj = obj.parent;
+                        }
+                        if (obj.parent === photoMeshGroup) {
+                            const particle = particleSystem.find(p => p.mesh === obj && p.type === 'PHOTO');
+                            if (particle) { 
+                                clickedPhoto = particle; 
+                                break; 
+                            }
+                        }
+                    }
+                }
+                
+                if (clickedPhoto) {
+                    STATE.mode = 'FOCUS';
+                    STATE.focusTarget = clickedPhoto.mesh;
+                } else {
+                    if (STATE.mode === 'FOCUS') {
+                        STATE.mode = 'TREE';
+                        STATE.focusTarget = null;
+                    }
+                }
+            });
+            let lastTap = 0;
+            container.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    STATE.mode = (STATE.mode === 'SCATTER') ? 'TREE' : 'SCATTER';
+                    e.preventDefault();
+                }
+                lastTap = currentTime;
+            });
+        }
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(CONFIG.colors.bg);
+            scene.fog = new THREE.FogExp2(CONFIG.colors.fog, 0.015);
+            camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, CONFIG.camera.z); 
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ReinhardToneMapping; 
+            renderer.toneMappingExposure = 2.2; 
+            container.appendChild(renderer.domElement);
+            mainGroup = new THREE.Group();
+            scene.add(mainGroup);
+        }
+
+        function setupEnvironment() {
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+        }
+
+        function setupLights() {
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
+            scene.add(ambient);
+            const innerLight = new THREE.PointLight(0xffaa00, 2, 20);
+            innerLight.position.set(0, 5, 0);
+            mainGroup.add(innerLight);
+            const spotGold = new THREE.SpotLight(0xffcc66, 1200);
+            spotGold.position.set(30, 40, 40); spotGold.angle = 0.5; spotGold.penumbra = 0.5;
+            scene.add(spotGold);
+            const spotBlue = new THREE.SpotLight(0x6688ff, 800); 
+            spotBlue.position.set(-30, 20, -30);
+            scene.add(spotBlue);
+            const fill = new THREE.DirectionalLight(0xffeebb, 0.8);
+            fill.position.set(0, 0, 50);
+            scene.add(fill);
+        }
+
+        function setupPostProcessing() {
+            const renderScene = new RenderPass(scene, camera);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = 0.65; bloomPass.strength = 0.5; bloomPass.radius = 0.4;
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+        }
+
+        function createTextures() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,128,128);
+            ctx.fillStyle = '#880000'; ctx.beginPath();
+            for(let i=-128; i<256; i+=32) {
+                ctx.moveTo(i, 0); ctx.lineTo(i+32, 128); ctx.lineTo(i+16, 128); ctx.lineTo(i-16, 0);
+            }
+            ctx.fill();
+            caneTexture = new THREE.CanvasTexture(canvas);
+            caneTexture.wrapS = THREE.RepeatWrapping; caneTexture.wrapT = THREE.RepeatWrapping;
+            caneTexture.repeat.set(3, 3);
+        }
+
+        function createSnow() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = []; const velocities = [];
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            context.fillStyle = 'white'; context.beginPath();
+            context.arc(16, 16, 16, 0, Math.PI * 2); context.fill();
+            const snowTexture = new THREE.CanvasTexture(canvas);
+            for (let i = 0; i < CONFIG.particles.snowCount; i++) {
+                vertices.push(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60));
+                velocities.push(Math.random() * 0.2 + 0.1, Math.random() * 0.05);
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('userData', new THREE.Float32BufferAttribute(velocities, 2));
+            const material = new THREE.PointsMaterial({
+                color: 0xffffff, size: 0.4, map: snowTexture, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            snowSystem = new THREE.Points(geometry, material);
+            scene.add(snowSystem);
+        }
+
+        function updateSnow() {
+            if (!snowSystem) return;
+            const positions = snowSystem.geometry.attributes.position.array;
+            const userData = snowSystem.geometry.attributes.userData.array;
+            for (let i = 0; i < CONFIG.particles.snowCount; i++) {
+                const fallSpeed = userData[i * 2];
+                positions[i * 3 + 1] -= fallSpeed;
+                const swaySpeed = userData[i * 2 + 1];
+                positions[i * 3] += Math.sin(clock.elapsedTime * 2 + i) * swaySpeed * 0.1;
+                if (positions[i * 3 + 1] < -30) {
+                    positions[i * 3 + 1] = 30;
+                    positions[i * 3] = THREE.MathUtils.randFloatSpread(100);
+                    positions[i * 3 + 2] = THREE.MathUtils.randFloatSpread(60);
+                }
+            }
+            snowSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        class Particle {
+            constructor(mesh, type, isDust = false) {
+                this.mesh = mesh; this.type = type; this.isDust = isDust;
+                this.posTree = new THREE.Vector3(); this.posScatter = new THREE.Vector3();
+                this.baseScale = mesh.scale.x; 
+                const speedMult = (type === 'PHOTO') ? 0.3 : 2.0;
+                this.spinSpeed = new THREE.Vector3((Math.random()-0.5)*speedMult, (Math.random()-0.5)*speedMult, (Math.random()-0.5)*speedMult);
+                this.calculatePositions();
+            }
+            calculatePositions() {
+                if (this.type === 'PHOTO') {
+                    this.posTree.set(0, 0, 0); 
+                    const rScatter = 8 + Math.random()*12;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    this.posScatter.set(rScatter * Math.sin(phi) * Math.cos(theta), rScatter * Math.sin(phi) * Math.sin(theta), rScatter * Math.cos(phi));
+                    return;
+                }
+                const h = CONFIG.particles.treeHeight;
+                let t = Math.pow(Math.random(), 0.8); 
+                const y = (t * h) - (h / 2);
+                let rMax = Math.max(0.5, CONFIG.particles.treeRadius * (1.0 - t));
+                const angle = t * 50 * Math.PI + Math.random() * Math.PI; 
+                const r = rMax * (0.8 + Math.random() * 0.4); 
+                this.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+                let rScatter = this.isDust ? (12 + Math.random()*20) : (8 + Math.random()*12);
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                this.posScatter.set(rScatter * Math.sin(phi) * Math.cos(theta), rScatter * Math.sin(phi) * Math.sin(theta), rScatter * Math.cos(phi));
+            }
+            update(dt, mode, focusTargetMesh) {
+                let target = (mode === 'SCATTER') ? this.posScatter : this.posTree;
+                if (mode === 'FOCUS') {
+                    if (this.mesh === focusTargetMesh) {
+                        const desiredWorldPos = new THREE.Vector3(0, 2, 35);
+                        const invMatrix = new THREE.Matrix4().copy(mainGroup.matrixWorld).invert();
+                        target = desiredWorldPos.applyMatrix4(invMatrix);
+                    } else target = this.posScatter;
+                }
+                const lerpSpeed = (mode === 'FOCUS' && this.mesh === focusTargetMesh) ? 5.0 : 2.0; 
+                this.mesh.position.lerp(target, lerpSpeed * dt);
+                if (mode === 'SCATTER') {
+                    this.mesh.rotation.x += this.spinSpeed.x * dt;
+                    this.mesh.rotation.y += this.spinSpeed.y * dt;
+                    this.mesh.rotation.z += this.spinSpeed.z * dt; 
+                } else if (mode === 'TREE') {
+                    if (this.type === 'PHOTO') {
+                        this.mesh.lookAt(0, this.mesh.position.y, 0);
+                        this.mesh.rotateY(Math.PI);
+                    } else {
+                        this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, 0, dt);
+                        this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, 0, dt);
+                        this.mesh.rotation.y += 0.5 * dt; 
+                    }
+                }
+                if (mode === 'FOCUS' && this.mesh === focusTargetMesh) this.mesh.lookAt(camera.position); 
+                let s = this.baseScale;
+                if (this.isDust) {
+                    s = this.baseScale * (0.8 + 0.4 * Math.sin(clock.elapsedTime * 4 + this.mesh.id));
+                    if (mode === 'TREE') s = 0; 
+                } else if (mode === 'SCATTER' && this.type === 'PHOTO') s = this.baseScale * 2.5; 
+                else if (mode === 'FOCUS') {
+                    if (this.mesh === focusTargetMesh) s = 4.5; else s = this.baseScale * 0.8; 
+                }
+                this.mesh.scale.lerp(new THREE.Vector3(s,s,s), 4*dt);
+            }
+        }
+
+        function updatePhotoLayout() {
+            const photos = particleSystem.filter(p => p.type === 'PHOTO');
+            const count = photos.length;
+            if (count === 0) return;
+            const h = CONFIG.particles.treeHeight * 0.9;
+            const bottomY = -h/2; const stepY = h / count; const loops = 3;
+            photos.forEach((p, i) => {
+                const y = bottomY + stepY * i + stepY/2;
+                const normalizedH = (y + h/2) / CONFIG.particles.treeHeight; 
+                const r = Math.max(1.0, CONFIG.particles.treeRadius * (1.0 - normalizedH)) + 3.0; 
+                const angle = normalizedH * Math.PI * 2 * loops + (Math.PI/4); 
+                p.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+            });
+        }
+
+        // 创建爱心形状的几何体
+        function createHeartGeometry(size = 0.55) {
+            const heartShape = new THREE.Shape();
+            const scale = size * 0.5;
+            
+            // 使用参数方程绘制爱心形状 (t从0到2π)
+            const points = [];
+            const numPoints = 32;
+            for (let i = 0; i <= numPoints; i++) {
+                const t = (i / numPoints) * Math.PI * 2;
+                // 爱心参数方程: x = 16sin³(t), y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                points.push(new THREE.Vector2(x * scale / 16, y * scale / 16)); // 移除负号，保持正常方向
+            }
+            
+            // 将点转换为路径
+            heartShape.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                heartShape.lineTo(points[i].x, points[i].y);
+            }
+            heartShape.closePath();
+            
+            // 使用ExtrudeGeometry创建3D爱心立方体
+            const extrudeSettings = {
+                depth: size * 0.6,
+                bevelEnabled: true,
+                bevelThickness: size * 0.08,
+                bevelSize: size * 0.08,
+                bevelSegments: 4,
+                curveSegments: 16
+            };
+            const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+            geometry.center(); // 居中几何体
+            // 保持原始方向，尖头朝下
+            return geometry;
+        }
+
+        function createParticles() {
+            const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32); 
+            // 创建爱心几何体（缓存一个基础版本，后续可以缩放）
+            const heartGeoBase = createHeartGeometry(0.55);
+            const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0, 0.3, 0), new THREE.Vector3(0.1, 0.5, 0), new THREE.Vector3(0.3, 0.4, 0)]);
+            const candyGeo = new THREE.TubeGeometry(curve, 16, 0.08, 8, false);
+            
+            // 创建多种颜色的材质
+            const goldMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1.0, roughness: 0.1, envMapIntensity: 2.0, emissive: 0x443300, emissiveIntensity: 0.3 });
+            const greenMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.deepGreen, metalness: 0.2, roughness: 0.8, emissive: 0x002200, emissiveIntensity: 0.2 });
+            const redMat = new THREE.MeshPhysicalMaterial({ color: CONFIG.colors.accentRed, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x330000 });
+            // 添加更多颜色的爱心材质
+            const pinkMat = new THREE.MeshPhysicalMaterial({ color: 0xff69b4, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x330033, emissiveIntensity: 0.2 });
+            const purpleMat = new THREE.MeshPhysicalMaterial({ color: 0x9370db, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x330066, emissiveIntensity: 0.2 });
+            const blueMat = new THREE.MeshPhysicalMaterial({ color: 0x4169e1, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x000033, emissiveIntensity: 0.2 });
+            const orangeMat = new THREE.MeshPhysicalMaterial({ color: 0xff8c00, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x331100, emissiveIntensity: 0.2 });
+            const yellowMat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, metalness: 0.4, roughness: 0.2, clearcoat: 1.0, emissive: 0x332200, emissiveIntensity: 0.3 });
+            const whiteMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.3, clearcoat: 1.0, emissive: 0x333333, emissiveIntensity: 0.1 });
+            
+            const candyMat = new THREE.MeshStandardMaterial({ map: caneTexture, roughness: 0.4 });
+            
+            // 爱心材质数组
+            const heartMaterials = [redMat, pinkMat, purpleMat, blueMat, orangeMat, yellowMat, goldMat, whiteMat, greenMat];
+            
+            for (let i = 0; i < CONFIG.particles.count; i++) {
+                const rand = Math.random();
+                let mesh, type;
+                // 将原来的方块替换为各种颜色的爱心
+                if (rand < 0.40) { 
+                    const heartMat = heartMaterials[Math.floor(Math.random() * heartMaterials.length)];
+                    mesh = new THREE.Mesh(heartGeoBase.clone(), heartMat); 
+                    type = 'HEART'; 
+                }
+                else if (rand < 0.70) { 
+                    const heartMat = heartMaterials[Math.floor(Math.random() * heartMaterials.length)];
+                    mesh = new THREE.Mesh(heartGeoBase.clone(), heartMat); 
+                    type = 'GOLD_HEART'; 
+                }
+                else if (rand < 0.92) { mesh = new THREE.Mesh(sphereGeo, goldMat); type = 'GOLD_SPHERE'; }
+                else if (rand < 0.97) { mesh = new THREE.Mesh(sphereGeo, redMat); type = 'RED'; }
+                else { mesh = new THREE.Mesh(candyGeo, candyMat); type = 'CANE'; }
+                const s = 0.4 + Math.random() * 0.5;
+                mesh.scale.set(s,s,s); mesh.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6);
+                mainGroup.add(mesh);
+                particleSystem.push(new Particle(mesh, type, false));
+            }
+            const starShape = new THREE.Shape();
+            const points = 5;
+            for (let i = 0; i < points * 2; i++) {
+                const angle = (i * Math.PI) / points + Math.PI / 2;
+                const r = (i % 2 === 0) ? 1.5 : 0.7;
+                const x = Math.cos(angle) * r; const y = Math.sin(angle) * r;
+                if (i === 0) starShape.moveTo(x, y); else starShape.lineTo(x, y);
+            }
+            starShape.closePath();
+            const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.4, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 2 });
+            starGeo.center(); 
+            const starMat = new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffaa00, emissiveIntensity: 1.0, metalness: 1.0, roughness: 0 });
+            const star = new THREE.Mesh(starGeo, starMat);
+            star.position.set(0, CONFIG.particles.treeHeight/2 + 1.2, 0);
+            mainGroup.add(star);
+            mainGroup.add(photoMeshGroup);
+        }
+
+        function createDust() {
+            const geo = new THREE.TetrahedronGeometry(0.08, 0);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffeebb, transparent: true, opacity: 0.8 });
+            for(let i=0; i<CONFIG.particles.dustCount; i++) {
+                 const mesh = new THREE.Mesh(geo, mat);
+                 mesh.scale.setScalar(0.5 + Math.random());
+                 mainGroup.add(mesh);
+                 particleSystem.push(new Particle(mesh, 'DUST', true));
+            }
+        }
+
+        function addPhotoToScene(texture) {
+            const frameGeo = new THREE.BoxGeometry(1.4, 1.4, 0.05);
+            const frameMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1.0, roughness: 0.1 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            let width = 1.2; let height = 1.2;
+            if (texture.image) {
+                const aspect = texture.image.width / texture.image.height;
+                if (aspect > 1) height = width / aspect; else width = height * aspect;
+            }
+            const photoGeo = new THREE.PlaneGeometry(width, height);
+            const photoMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const photo = new THREE.Mesh(photoGeo, photoMat);
+            photo.position.z = 0.04;
+            const group = new THREE.Group();
+            group.add(frame); group.add(photo);
+            frame.scale.set(width/1.2, height/1.2, 1);
+            const s = 0.8; group.scale.set(s,s,s);
+            photoMeshGroup.add(group);
+            particleSystem.push(new Particle(group, 'PHOTO', false));
+            updatePhotoLayout();
+        }
+
+        function loadPredefinedImages() {
+            const loader = new THREE.TextureLoader();
+            if (CONFIG.preload.autoScanLocal) {
+                for (let i = 1; i <= CONFIG.preload.scanCount; i++) {
+                    const pathJpg = `./images/(${i}).jpg`;
+                    const pathPng = `./images/(${i}).png`;
+                    loader.load(pathJpg, (t) => { t.colorSpace = THREE.SRGBColorSpace; addPhotoToScene(t); }, undefined, () => {
+                             loader.load(pathPng, (t) => { t.colorSpace = THREE.SRGBColorSpace; addPhotoToScene(t); }, undefined, () => {} );
+                    });
+                }
+            }
+        }
+
+        function showMsg(txt) {
+            const box = document.getElementById('msg-box');
+            box.innerText = txt; box.style.display = 'block';
+            setTimeout(() => { box.style.display = 'none'; }, 3000);
+        }
+
+
+        function toggleWebcamView() {
+            STATE.webcamVisible = !STATE.webcamVisible;
+            const hidden = !STATE.webcamVisible;
+            if (webcamWrapper) webcamWrapper.classList.toggle('ui-hidden', hidden);
+            if (webcamToggleBtn) webcamToggleBtn.innerText = hidden ? "👁️ 显示摄像头画面" : "👁️ 隐藏摄像头画面";
+        }
+
+        function toggleFullscreen() {
+            const root = document.documentElement;
+            const enter = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+            const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (!document.fullscreenElement && enter) {
+                enter.call(root).catch(() => {});
+            } else if (document.fullscreenElement && exit) {
+                exit.call(document).catch(() => {});
+            }
+        }
+
+        async function initMediaPipe(autoStart = false) {
+            if (isCameraRunning) return;
+            debugInfo.innerText = "正在加载 AI 模型...";
+            video = document.getElementById('webcam');
+            try {
+                const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+                handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                    baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" },
+                    runningMode: "VIDEO", numHands: 1
+                });
+                const constraints = { video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.addEventListener("loadeddata", predictWebcam);
+                document.getElementById('webcam-wrapper').style.opacity = 1;
+                STATE.webcamVisible = true;
+                if (webcamWrapper) webcamWrapper.classList.remove('ui-hidden');
+                if (webcamToggleBtn) webcamToggleBtn.innerText = "👁️ 隐藏摄像头画面";
+                debugInfo.innerText = "手势已启用：抬手进行切换";
+                isCameraRunning = true;
+            } catch(e) {
+                console.warn("Camera error:", e);
+                let msg = "摄像头异常: " + e.name;
+                if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') msg = "请允许摄像头访问！";
+                else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') msg = "需在 https 或 localhost 才能使用摄像头";
+                debugInfo.innerText = msg; showMsg(msg);
+                if (camBtn) camBtn.innerText = "重试手势控制";
+            }
+        }
+
+        let lastVideoTime = -1;
+        async function predictWebcam() {
+            if (video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                if (handLandmarker) {
+                    const result = handLandmarker.detectForVideo(video, performance.now());
+                    processGestures(result);
+                }
+            }
+            requestAnimationFrame(predictWebcam);
+        }
+
+        function processGestures(result) {
+            if (result.landmarks && result.landmarks.length > 0) {
+                STATE.hand.detected = true;
+                const lm = result.landmarks[0];
+                STATE.hand.x = (lm[9].x - 0.5) * 2; 
+                STATE.hand.y = (lm[9].y - 0.5) * 2;
+                const wrist = lm[0]; const middleMCP = lm[9]; 
+                const handSize = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
+                if (handSize < 0.02) return;
+                const tips = [lm[8], lm[12], lm[16], lm[20]];
+                let avgTipDist = 0; tips.forEach(t => avgTipDist += Math.hypot(t.x - wrist.x, t.y - wrist.y)); avgTipDist /= 4;
+                const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+                const extensionRatio = avgTipDist / handSize; const pinchRatio = pinchDist / handSize;
+                debugInfo.innerText = `已识别手势，当前模式：${STATE.mode}`;
+                if (extensionRatio < 1.5) { STATE.mode = 'TREE'; STATE.focusTarget = null; }
+                else if (pinchRatio < 0.35) {
+                    if (STATE.mode !== 'FOCUS') {
+                        STATE.mode = 'FOCUS';
+                        const next = pickRandomPhoto(STATE.focusTarget);
+                        if (next) {
+                            STATE.focusTarget = next;
+                            STATE.lastRandomPhotoId = next.id;
+                        }
+                    }
+                } else if (extensionRatio > 1.7) { STATE.mode = 'SCATTER'; STATE.focusTarget = null; }
+            } else {
+                STATE.hand.detected = false;
+            }
+        }
+
+        function setupEvents() {
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                composer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            const volumeSlider = document.getElementById('volume-slider');
+            const volumeValue = document.getElementById('volume-value');
+            if (volumeSlider && volumeValue) {
+                audioElement.volume = volumeSlider.value / 100;
+                volumeValue.textContent = volumeSlider.value + '%';
+                
+                volumeSlider.addEventListener('input', (e) => {
+                    const volume = e.target.value / 100;
+                    audioElement.volume = volume;
+                    volumeValue.textContent = e.target.value + '%';
+                });
+            }
+            
+            // 设置面板切换
+            const settingsToggle = document.getElementById('settings-toggle');
+            const settingsPanel = document.getElementById('settings-panel');
+            if (settingsToggle && settingsPanel) {
+                settingsToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    settingsPanel.classList.toggle('show');
+                });
+                
+                // 点击面板外部关闭设置面板
+                document.addEventListener('click', (e) => {
+                    if (settingsPanel.classList.contains('show') && 
+                        !settingsPanel.contains(e.target) && 
+                        !settingsToggle.contains(e.target) &&
+                        !musicPlayerPanel.contains(e.target)) {
+                        settingsPanel.classList.remove('show');
+                    }
+                });
+            }
+            
+            // 音乐播放器控制
+            const openMusicPlayerBtn = document.getElementById('open-music-player');
+            const closeMusicPlayerBtn = document.getElementById('close-music-player');
+            const musicPlayerPanel = document.getElementById('music-player-panel');
+            
+            if (openMusicPlayerBtn && musicPlayerPanel) {
+                openMusicPlayerBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // 先设置display，再设置opacity，避免闪烁
+                    musicPlayerPanel.style.display = 'flex';
+                    // 使用requestAnimationFrame确保DOM更新后再设置opacity
+                    requestAnimationFrame(() => {
+                        musicPlayerPanel.style.opacity = '1';
+                    });
+                    // 关闭设置面板
+                    if (settingsPanel) settingsPanel.classList.remove('show');
+                    // 如果歌单为空，加载歌单
+                    if (playlist.length === 0) {
+                        loadPlaylist();
+                    }
+                });
+                
+                openMusicPlayerBtn.addEventListener('mouseenter', function() {
+                    this.style.background = 'rgba(212, 175, 55, 0.4)';
+                    this.style.borderColor = 'rgba(212, 175, 55, 0.8)';
+                });
+                openMusicPlayerBtn.addEventListener('mouseleave', function() {
+                    this.style.background = 'rgba(212, 175, 55, 0.2)';
+                    this.style.borderColor = 'rgba(212, 175, 55, 0.5)';
+                });
+            }
+            
+            if (closeMusicPlayerBtn && musicPlayerPanel) {
+                // 使用更可靠的事件绑定
+                closeMusicPlayerBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    // 平滑关闭，避免闪烁
+                    musicPlayerPanel.style.opacity = '0';
+                    setTimeout(() => {
+                        musicPlayerPanel.style.display = 'none';
+                        musicPlayerPanel.style.opacity = '1'; // 重置透明度以便下次打开
+                    }, 300);
+                    return false;
+                };
+                
+                // 也添加addEventListener作为备用
+                closeMusicPlayerBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    musicPlayerPanel.style.opacity = '0';
+                    setTimeout(() => {
+                        musicPlayerPanel.style.display = 'none';
+                        musicPlayerPanel.style.opacity = '1';
+                    }, 300);
+                    return false;
+                }, true); // 使用捕获阶段，确保优先执行
+                
+                // 点击面板外部也可以关闭（但排除按钮本身）
+                musicPlayerPanel.addEventListener('click', function(e) {
+                    if (e.target === musicPlayerPanel) {
+                        musicPlayerPanel.style.opacity = '0';
+                        setTimeout(() => {
+                            musicPlayerPanel.style.display = 'none';
+                            musicPlayerPanel.style.opacity = '1';
+                        }, 300);
+                    }
+                });
+                
+                closeMusicPlayerBtn.addEventListener('mouseenter', function() {
+                    this.style.background = 'rgba(212, 175, 55, 0.4)';
+                    this.style.borderColor = 'rgba(212, 175, 55, 0.8)';
+                    this.style.transform = 'scale(1.05)';
+                });
+                closeMusicPlayerBtn.addEventListener('mouseleave', function() {
+                    this.style.background = 'rgba(212, 175, 55, 0.2)';
+                    this.style.borderColor = 'rgba(212, 175, 55, 0.5)';
+                    this.style.transform = 'scale(1)';
+                });
+            }
+            
+            // 音乐播放器功能实现
+            const audioPlayer = document.getElementById('audio-player');
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const progressBar = document.getElementById('progress-bar');
+            const progressFill = document.getElementById('progress-fill');
+            const currentTimeEl = document.getElementById('current-time');
+            const totalTimeEl = document.getElementById('total-time');
+            const volumeControl = document.getElementById('music-volume-control');
+            const currentSongInfo = document.getElementById('current-song-info');
+            const playlistContainer = document.getElementById('playlist');
+            const playlistContainerWrapper = document.getElementById('playlist-container');
+            const playlistLoading = document.getElementById('playlist-loading');
+            const playlistError = document.getElementById('playlist-error');
+            const playlistCount = document.getElementById('playlist-count');
+            
+            let playlist = [];
+            let currentIndex = -1;
+            let isPlaying = false;
+            
+            // 酷狗音乐歌单链接
+            const playlistUrl = 'https://t1.kugou.com/20gHF59EwV3';
+            
+            // 加载歌单（全局函数，供onclick使用）
+            window.loadPlaylist = async function loadPlaylist() {
+                // 平滑显示/隐藏，避免闪烁
+                playlistLoading.style.opacity = '1';
+                playlistLoading.style.display = 'block';
+                if (playlistContainerWrapper) {
+                    playlistContainerWrapper.style.opacity = '0';
+                    setTimeout(() => {
+                        playlistContainerWrapper.style.display = 'none';
+                    }, 200);
+                }
+                playlistError.style.opacity = '0';
+                setTimeout(() => {
+                    playlistError.style.display = 'none';
+                }, 200);
+                
+                try {
+                    // 尝试多个 CORS 代理（更新了可用的代理）
+                    const proxies = [
+                        `https://api.allorigins.win/get?url=${encodeURIComponent(playlistUrl)}`,
+                        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(playlistUrl)}`,
+                        `https://corsproxy.io/?${encodeURIComponent(playlistUrl)}`,
+                        `https://api.corsanywhere.workers.dev/?${encodeURIComponent(playlistUrl)}`
+                    ];
+                    
+                    let response = null;
+                    let data = null;
+                    
+                    for (let proxyUrl of proxies) {
+                        try {
+                            response = await fetch(proxyUrl, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                                },
+                                mode: 'cors'
+                            });
+                            if (response.ok) {
+                                let responseData;
+                                const contentType = response.headers.get('content-type');
+                                
+                                if (contentType && contentType.includes('application/json')) {
+                                    responseData = await response.json();
+                                } else {
+                                    // 尝试作为文本解析
+                                    const text = await response.text();
+                                    try {
+                                        responseData = JSON.parse(text);
+                                    } catch {
+                                        // 如果不是JSON，直接使用文本
+                                        responseData = text;
+                                    }
+                                }
+                                
+                                if (proxyUrl.includes('allorigins')) {
+                                    data = { contents: responseData.contents || responseData };
+                                } else if (proxyUrl.includes('codetabs')) {
+                                    // codetabs返回的是HTML文本
+                                    data = { contents: typeof responseData === 'string' ? responseData : (responseData.contents || '') };
+                                } else {
+                                    data = { contents: responseData.contents || responseData || '' };
+                                }
+                                
+                                if (data && data.contents && typeof data.contents === 'string' && data.contents.length > 100) {
+                                    console.log('成功通过代理获取数据:', proxyUrl, '数据长度:', data.contents.length);
+                                    break;
+                                } else {
+                                    console.warn('代理返回数据不足:', proxyUrl, '数据长度:', data?.contents?.length || 0);
+                                }
+                            }
+                        } catch (e) {
+                            console.log('代理失败:', proxyUrl, e);
+                            continue;
+                        }
+                    }
+                    
+                    if (!data || !data.contents) {
+                        throw new Error('无法获取歌单数据，请检查网络连接或稍后重试');
+                    }
+                    
+                    // 解析 HTML 获取歌曲信息
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data.contents, 'text/html');
+                    
+                    // 尝试从页面中提取歌曲列表
+                    const scripts = doc.querySelectorAll('script');
+                    let songs = [];
+                    
+                    for (let script of scripts) {
+                        if (script.textContent) {
+                            // 查找包含歌曲数据的 JSON
+                            const jsonMatch = script.textContent.match(/var\s+playList\s*=\s*(\[.*?\]);/s);
+                            if (jsonMatch) {
+                                try {
+                                    const parsed = JSON.parse(jsonMatch[1]);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        songs = parsed.map(s => ({
+                                            hash: s.hash || s.Hash || '',
+                                            songname: s.songname || s.SongName || s.filename || '',
+                                            singername: s.singername || s.SingerName || s.singer || '未知',
+                                            album_id: s.album_id || s.AlbumID || '',
+                                            name: `${s.songname || s.SongName || s.filename || ''} - ${s.singername || s.SingerName || s.singer || '未知'}`
+                                        }));
+                                        break;
+                                    }
+                                } catch (e) {
+                                    console.log('JSON解析失败:', e);
+                                }
+                            }
+                            
+                            // 查找 hash 和 songname（备用方法）
+                            if (songs.length === 0) {
+                                const hashMatches = [...script.textContent.matchAll(/"hash"\s*:\s*"([^"]+)"/g)];
+                                const nameMatches = [...script.textContent.matchAll(/"songname"\s*:\s*"([^"]+)"/g)];
+                                const singerMatches = [...script.textContent.matchAll(/"singername"\s*:\s*"([^"]+)"/g)];
+                                
+                                if (hashMatches.length > 0 && nameMatches.length > 0) {
+                                    for (let i = 0; i < Math.min(hashMatches.length, nameMatches.length); i++) {
+                                        const hash = hashMatches[i][1];
+                                        const name = nameMatches[i][1];
+                                        const singer = singerMatches[i] ? singerMatches[i][1] : '未知';
+                                        songs.push({
+                                            hash: hash,
+                                            songname: name,
+                                            singername: singer,
+                                            name: `${name} - ${singer}`
+                                        });
+                                    }
+                                    if (songs.length > 0) break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (songs.length === 0) {
+                        console.warn('未找到歌曲数据，尝试备用解析方法...');
+                        // 尝试从HTML中直接提取更多信息
+                        const songItems = doc.querySelectorAll('.song-item, .list-item, [data-hash]');
+                        if (songItems.length > 0) {
+                            console.log('找到', songItems.length, '个可能的歌曲元素');
+                        }
+                        throw new Error('无法解析歌单数据。可能原因：1) 歌单需要登录访问 2) 页面结构已更改 3) CORS代理返回的数据不完整');
+                    }
+                    
+                    console.log('成功解析', songs.length, '首歌曲');
+                    playlist = songs;
+                    renderPlaylist();
+                    
+                    // 平滑显示结果
+                    playlistLoading.style.opacity = '0';
+                    setTimeout(() => {
+                        playlistLoading.style.display = 'none';
+                    }, 200);
+                    
+                    if (playlistContainerWrapper) {
+                        playlistContainerWrapper.style.display = 'block';
+                        setTimeout(() => {
+                            playlistContainerWrapper.style.opacity = '1';
+                        }, 50);
+                    }
+                    
+                } catch (error) {
+                    console.error('加载歌单失败:', error);
+                    console.error('错误详情:', error.message, error.stack);
+                    playlistLoading.style.opacity = '0';
+                    setTimeout(() => {
+                        playlistLoading.style.display = 'none';
+                    }, 200);
+                    
+                    playlistError.style.display = 'block';
+                    setTimeout(() => {
+                        playlistError.style.opacity = '1';
+                    }, 50);
+                    
+                    // 显示详细错误信息
+                    const errorMsg = playlistError.querySelector('div');
+                    if (errorMsg) {
+                        errorMsg.innerHTML = `❌ 无法加载歌单<br><small style="color: rgba(255, 150, 150, 0.8); font-size: 12px;">${error.message || '未知错误'}</small>`;
+                    }
+                }
+            }
+            
+            // 渲染播放列表
+            function renderPlaylist() {
+                playlistCount.textContent = playlist.length;
+                playlistContainer.innerHTML = '';
+                
+                playlist.forEach((song, index) => {
+                    const item = document.createElement('div');
+                    const isActive = currentIndex === index;
+                    item.style.cssText = `
+                        padding: 15px; 
+                        background: ${isActive ? 'rgba(212, 175, 55, 0.25)' : 'rgba(212, 175, 55, 0.1)'}; 
+                        border: 1px solid ${isActive ? 'rgba(212, 175, 55, 0.6)' : 'rgba(212, 175, 55, 0.2)'}; 
+                        border-radius: 8px; 
+                        cursor: pointer; 
+                        transition: all 0.3s; 
+                        display: flex; 
+                        align-items: center; 
+                        gap: 15px;
+                        margin-bottom: 10px;
+                    `;
+                    
+                    const playIcon = isActive && isPlaying ? '⏸' : (isActive ? '▶' : '');
+                    item.innerHTML = `
+                        <div style="width: 45px; height: 45px; background: rgba(212, 175, 55, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d4af37; font-weight: bold; font-size: 14px; flex-shrink: 0;">
+                            ${playIcon || (index + 1)}
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="color: ${isActive ? '#d4af37' : '#d4af37'}; font-size: 16px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.songname || song.name || '未知歌曲'}</div>
+                            <div style="color: rgba(212, 175, 55, 0.7); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.singername || '未知歌手'}</div>
+                        </div>
+                    `;
+                    
+                    item.addEventListener('click', () => playSong(index));
+                    item.addEventListener('mouseenter', function() {
+                        if (!isActive) {
+                            this.style.background = 'rgba(212, 175, 55, 0.2)';
+                            this.style.borderColor = 'rgba(212, 175, 55, 0.5)';
+                            this.style.transform = 'translateX(5px)';
+                        }
+                    });
+                    item.addEventListener('mouseleave', function() {
+                        if (!isActive) {
+                            this.style.background = 'rgba(212, 175, 55, 0.1)';
+                            this.style.borderColor = 'rgba(212, 175, 55, 0.2)';
+                        }
+                        this.style.transform = 'translateX(0)';
+                    });
+                    
+                    playlistContainer.appendChild(item);
+                });
+            }
+            
+            // 获取歌曲播放链接
+            async function getSongUrl(hash) {
+                if (!hash) return null;
+                
+                try {
+                    // 使用酷狗音乐 API 获取播放链接
+                    const apiUrl = `https://www.kugou.com/yy/index.php?r=play/getdata&hash=${hash}`;
+                    
+                    // 尝试多个代理
+                    const proxies = [
+                        `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`,
+                        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`
+                    ];
+                    
+                    for (let proxyUrl of proxies) {
+                        try {
+                            const response = await fetch(proxyUrl, {
+                                headers: {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                    'Referer': 'https://www.kugou.com/'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                const contents = proxyUrl.includes('allorigins') ? data.contents : JSON.stringify(data);
+                                const result = JSON.parse(contents);
+                                
+                                if (result.status === 1 && result.data && result.data.play_url) {
+                                    return result.data.play_url;
+                                }
+                                
+                                // 尝试其他可能的字段名
+                                if (result.data) {
+                                    const url = result.data.play_url || result.data.url || result.data.url_list?.[0]?.url;
+                                    if (url) return url;
+                                }
+                            }
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                } catch (error) {
+                    console.error('获取播放链接失败:', error);
+                }
+                return null;
+            }
+            
+            // 播放歌曲
+            async function playSong(index) {
+                if (index < 0 || index >= playlist.length) return;
+                
+                currentIndex = index;
+                const song = playlist[index];
+                const songName = song.name || `${song.songname || '未知歌曲'} - ${song.singername || '未知歌手'}`;
+                currentSongInfo.textContent = songName;
+                
+                // 更新播放列表高亮
+                renderPlaylist();
+                
+                if (song.hash) {
+                    // 显示加载状态
+                    currentSongInfo.textContent = `⏳ 正在加载: ${songName}`;
+                    
+                    const url = await getSongUrl(song.hash);
+                    if (url) {
+                        audioPlayer.src = url;
+                        try {
+                            await audioPlayer.play();
+                            isPlaying = true;
+                            updatePlayPauseButton();
+                            currentSongInfo.textContent = `▶ ${songName}`;
+                        } catch (error) {
+                            console.error('播放失败:', error);
+                            currentSongInfo.textContent = `❌ 播放失败: ${songName}`;
+                            alert('播放失败，请检查网络连接或稍后重试');
+                        }
+                    } else {
+                        currentSongInfo.textContent = `❌ 无法获取播放链接: ${songName}`;
+                        alert('无法获取播放链接，请稍后重试\n\n提示：由于跨域限制，可能需要使用浏览器扩展或服务器代理');
+                    }
+                } else {
+                    currentSongInfo.textContent = `❌ 歌曲信息不完整: ${songName}`;
+                    alert('歌曲信息不完整，无法播放');
+                }
+            }
+            
+            // 播放/暂停
+            function togglePlayPause() {
+                if (!audioPlayer.src) {
+                    if (playlist.length > 0) {
+                        playSong(0);
+                    }
+                    return;
+                }
+                
+                if (isPlaying) {
+                    audioPlayer.pause();
+                    isPlaying = false;
+                } else {
+                    audioPlayer.play();
+                    isPlaying = true;
+                }
+                updatePlayPauseButton();
+            }
+            
+            // 上一首
+            function playPrevious() {
+                if (playlist.length === 0) return;
+                const newIndex = currentIndex > 0 ? currentIndex - 1 : playlist.length - 1;
+                playSong(newIndex);
+            }
+            
+            // 下一首
+            function playNext() {
+                if (playlist.length === 0) return;
+                const newIndex = currentIndex < playlist.length - 1 ? currentIndex + 1 : 0;
+                playSong(newIndex);
+            }
+            
+            // 更新播放/暂停按钮
+            function updatePlayPauseButton() {
+                playPauseBtn.textContent = isPlaying ? '⏸' : '▶';
+            }
+            
+            // 格式化时间
+            function formatTime(seconds) {
+                if (isNaN(seconds)) return '00:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            // 事件监听
+            if (playPauseBtn) playPauseBtn.addEventListener('click', togglePlayPause);
+            if (prevBtn) prevBtn.addEventListener('click', playPrevious);
+            if (nextBtn) nextBtn.addEventListener('click', playNext);
+            
+            if (audioPlayer) {
+                audioPlayer.addEventListener('loadedmetadata', () => {
+                    totalTimeEl.textContent = formatTime(audioPlayer.duration);
+                });
+                
+                audioPlayer.addEventListener('timeupdate', () => {
+                    const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                    progressFill.style.width = progress + '%';
+                    currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+                });
+                
+                audioPlayer.addEventListener('ended', () => {
+                    playNext();
+                });
+                
+                audioPlayer.addEventListener('play', () => {
+                    isPlaying = true;
+                    updatePlayPauseButton();
+                });
+                
+                audioPlayer.addEventListener('pause', () => {
+                    isPlaying = false;
+                    updatePlayPauseButton();
+                });
+            }
+            
+            if (progressBar) {
+                progressBar.addEventListener('click', (e) => {
+                    const rect = progressBar.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    if (audioPlayer.duration) {
+                        audioPlayer.currentTime = percent * audioPlayer.duration;
+                    }
+                });
+            }
+            
+            if (volumeControl) {
+                volumeControl.addEventListener('input', (e) => {
+                    audioPlayer.volume = e.target.value / 100;
+                });
+                audioPlayer.volume = volumeControl.value / 100;
+            }
+            
+            // 歌单加载逻辑已在上面合并处理
+            
+            // 键盘快捷键
+            document.addEventListener('keydown', (e) => {
+                if (musicPlayerPanel && musicPlayerPanel.style.display === 'flex') {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        togglePlayPause();
+                    } else if (e.code === 'ArrowLeft') {
+                        playPrevious();
+                    } else if (e.code === 'ArrowRight') {
+                        playNext();
+                    }
+                }
+            });
+            
+            if (webcamToggleBtn) webcamToggleBtn.addEventListener('click', toggleWebcamView);
+            if (fullscreenBtnEl) {
+                fullscreenBtnEl.addEventListener('click', toggleFullscreen);
+            }
+            document.addEventListener('fullscreenchange', () => {
+                const isFs = !!document.fullscreenElement;
+                if (fullscreenBtnEl) fullscreenBtnEl.innerText = isFs ? "⛶ 退出全屏" : "⛶ 全屏";
+            });
+            window.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                if (key === 'h') {
+                    const controls = document.querySelector('.controls-wrapper');
+                    if (controls) controls.classList.toggle('ui-hidden');
+                    const webcam = document.getElementById('webcam-wrapper');
+                    if(webcam) webcam.classList.toggle('ui-hidden');
+                } else if (key === 's') {
+                    const stats = document.getElementById('footer-stats');
+                    if (stats) stats.classList.toggle('ui-hidden');
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            if (STATE.hand.detected) {
+                if (STATE.mode === 'SCATTER') {
+                    const targetRotY = STATE.hand.x * Math.PI * 0.9; 
+                    const targetRotX = STATE.hand.y * Math.PI * 0.25;
+                    STATE.rotation.y += (targetRotY - STATE.rotation.y) * 3.0 * dt;
+                    STATE.rotation.x += (targetRotX - STATE.rotation.x) * 3.0 * dt;
+                } else {
+                    STATE.rotation.y += 0.3 * dt;
+                }
+            } else if (STATE.touch.active) {
+            } else {
+                if(STATE.mode === 'TREE') {
+                    STATE.rotation.y += 0.3 * dt;
+                    STATE.rotation.x += (0 - STATE.rotation.x) * 2.0 * dt;
+                } else {
+                    STATE.rotation.y += 0.1 * dt; 
+                }
+            }
+            mainGroup.rotation.y = STATE.rotation.y;
+            mainGroup.rotation.x = STATE.rotation.x;
+            particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
+            updateSnow();
+            composer.render();
+        }
+
+        init();
+    </script>
+</body>
+</html>
