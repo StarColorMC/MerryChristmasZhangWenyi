@@ -786,7 +786,27 @@
             setupEvents();
             setupTouchAndClick(); 
             if (webcamToggleBtn) webcamToggleBtn.innerText = "👁️ 隐藏摄像头画面";
-            initMediaPipe(true);
+            
+            // 异步启动摄像头，不阻塞页面加载
+            initMediaPipe(true).catch(err => {
+                console.log("摄像头功能未启用（可选功能）:", err);
+            });
+            
+            // 页面卸载时清理摄像头资源
+            window.addEventListener('beforeunload', () => {
+                stopCamera();
+            });
+            
+            // 页面隐藏时暂停摄像头（节省资源）
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && isCameraRunning && video && video.srcObject) {
+                    const stream = video.srcObject;
+                    stream.getTracks().forEach(track => track.enabled = false);
+                } else if (!document.hidden && isCameraRunning && video && video.srcObject) {
+                    const stream = video.srcObject;
+                    stream.getTracks().forEach(track => track.enabled = true);
+                }
+            });
             
             loadPredefinedImages();
             loadPresetMusic();
@@ -1331,6 +1351,30 @@
         }
 
 
+        function stopCamera() {
+            if (video && video.srcObject) {
+                const stream = video.srcObject;
+                const tracks = stream.getTracks();
+                tracks.forEach(track => {
+                    track.stop();
+                    track.enabled = false;
+                });
+                video.srcObject = null;
+            }
+            if (handLandmarker) {
+                handLandmarker.close();
+                handLandmarker = null;
+            }
+            isCameraRunning = false;
+            STATE.webcamVisible = false;
+            if (webcamWrapper) {
+                webcamWrapper.classList.add('ui-hidden');
+                webcamWrapper.style.opacity = 0;
+            }
+            if (webcamToggleBtn) webcamToggleBtn.innerText = "👁️ 显示摄像头画面";
+            debugInfo.innerText = "摄像头已关闭";
+        }
+
         function toggleWebcamView() {
             STATE.webcamVisible = !STATE.webcamVisible;
             const hidden = !STATE.webcamVisible;
@@ -1351,30 +1395,120 @@
 
         async function initMediaPipe(autoStart = false) {
             if (isCameraRunning) return;
+            
+            // 检查浏览器支持
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                const msg = "您的浏览器不支持摄像头功能";
+                debugInfo.innerText = msg;
+                showMsg(msg);
+                return;
+            }
+            
+            // 检查 HTTPS
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                const msg = "摄像头功能需要 HTTPS 环境，请使用 https:// 访问";
+                debugInfo.innerText = msg;
+                showMsg(msg);
+                return;
+            }
+            
             debugInfo.innerText = "正在加载 AI 模型...";
             video = document.getElementById('webcam');
+            
             try {
+                // 检查摄像头设备
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const hasCamera = devices.some(device => device.kind === 'videoinput');
+                if (!hasCamera) {
+                    throw new Error('NoCameraDevice');
+                }
+                
+                // 加载 MediaPipe 模型
+                debugInfo.innerText = "正在加载手势识别模型...";
                 const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
                 handLandmarker = await HandLandmarker.createFromOptions(vision, {
-                    baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" },
-                    runningMode: "VIDEO", numHands: 1
+                    baseOptions: { 
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, 
+                        delegate: "GPU" 
+                    },
+                    runningMode: "VIDEO", 
+                    numHands: 1
                 });
-                const constraints = { video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } };
+                
+                // 请求摄像头权限
+                debugInfo.innerText = "正在请求摄像头权限...";
+                const constraints = { 
+                    video: { 
+                        facingMode: "user", 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 } 
+                    } 
+                };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
                 video.srcObject = stream;
                 video.addEventListener("loadeddata", predictWebcam);
+                video.addEventListener("error", (e) => {
+                    console.error("Video error:", e);
+                    debugInfo.innerText = "视频流错误，请刷新页面重试";
+                });
+                
                 document.getElementById('webcam-wrapper').style.opacity = 1;
                 STATE.webcamVisible = true;
                 if (webcamWrapper) webcamWrapper.classList.remove('ui-hidden');
                 if (webcamToggleBtn) webcamToggleBtn.innerText = "👁️ 隐藏摄像头画面";
-                debugInfo.innerText = "手势已启用：抬手进行切换";
+                debugInfo.innerText = "✅ 手势已启用：抬手进行切换";
                 isCameraRunning = true;
+                
+                // 成功提示
+                showMsg("手势控制已启用！", 2000);
+                
             } catch(e) {
                 console.warn("Camera error:", e);
-                let msg = "摄像头异常: " + e.name;
-                if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') msg = "请允许摄像头访问！";
-                else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') msg = "需在 https 或 localhost 才能使用摄像头";
-                debugInfo.innerText = msg; showMsg(msg);
+                isCameraRunning = false;
+                
+                let msg = "摄像头功能无法使用";
+                let detail = "";
+                
+                if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+                    msg = "摄像头权限被拒绝";
+                    detail = "请在浏览器设置中允许摄像头访问，然后刷新页面重试";
+                } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError' || e.message === 'NoCameraDevice') {
+                    msg = "未检测到摄像头设备";
+                    detail = "请确保设备已连接摄像头";
+                } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+                    msg = "摄像头被其他应用占用";
+                    detail = "请关闭其他使用摄像头的应用后重试";
+                } else if (e.name === 'OverconstrainedError' || e.name === 'ConstraintNotSatisfiedError') {
+                    msg = "摄像头不支持所需设置";
+                    detail = "正在尝试使用默认设置...";
+                    // 尝试使用更宽松的约束
+                    try {
+                        const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        video.srcObject = fallbackStream;
+                        video.addEventListener("loadeddata", predictWebcam);
+                        document.getElementById('webcam-wrapper').style.opacity = 1;
+                        STATE.webcamVisible = true;
+                        if (webcamWrapper) webcamWrapper.classList.remove('ui-hidden');
+                        if (webcamToggleBtn) webcamToggleBtn.innerText = "👁️ 隐藏摄像头画面";
+                        debugInfo.innerText = "✅ 手势已启用（使用默认设置）";
+                        isCameraRunning = true;
+                        return;
+                    } catch (fallbackError) {
+                        detail = "无法使用摄像头";
+                    }
+                } else if (e.message && e.message.includes('Failed to fetch')) {
+                    msg = "AI 模型加载失败";
+                    detail = "网络连接问题，请检查网络后重试";
+                } else {
+                    detail = `错误类型: ${e.name || '未知错误'}`;
+                }
+                
+                debugInfo.innerText = `${msg}${detail ? ' - ' + detail : ''}`;
+                showMsg(msg + (detail ? '\n' + detail : ''), 5000);
+                
+                // 重置按钮状态
+                const camBtn = document.getElementById('cam-btn');
                 if (camBtn) camBtn.innerText = "重试手势控制";
             }
         }
