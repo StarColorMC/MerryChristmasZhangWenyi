@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vercel 部署测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-item {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #d4af37;
+        }
+        .success { border-left-color: #4caf50; }
+        .error { border-left-color: #f44336; }
+        .warning { border-left-color: #ff9800; }
+        button {
+            background: #d4af37;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #ffd966; }
+        .info { color: #888; font-size: 12px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Vercel 部署诊断工具</h1>
+    <p>这个页面可以帮助您诊断手机浏览器无法打开网页的问题。</p>
+    
+    <div id="results"></div>
+    
+    <button onclick="runTests()">重新测试</button>
+    <button onclick="window.location.href='index.html'">返回主页面</button>
+    
+    <script>
+        const tests = [
+            {
+                name: '基本页面加载',
+                test: () => Promise.resolve(true),
+                message: '页面已成功加载'
+            },
+            {
+                name: 'JavaScript 支持',
+                test: () => Promise.resolve(typeof window !== 'undefined'),
+                message: '浏览器支持 JavaScript'
+            },
+            {
+                name: 'HTTPS 协议',
+                test: () => Promise.resolve(window.location.protocol === 'https:' || window.location.hostname === 'localhost'),
+                message: '使用 HTTPS 或 localhost'
+            },
+            {
+                name: 'Three.js CDN',
+                test: () => fetch('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', { method: 'HEAD' })
+                    .then(r => r.ok)
+                    .catch(() => false),
+                message: '可以访问 Three.js CDN'
+            },
+            {
+                name: 'Google Fonts',
+                test: () => fetch('https://fonts.googleapis.com/css2?family=Cinzel', { method: 'HEAD' })
+                    .then(r => r.ok)
+                    .catch(() => false),
+                message: '可以访问 Google Fonts'
+            },
+            {
+                name: 'Font Awesome CDN',
+                test: () => fetch('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', { method: 'HEAD' })
+                    .then(r => r.ok)
+                    .catch(() => false),
+                message: '可以访问 Font Awesome CDN'
+            },
+            {
+                name: '图片文件夹',
+                test: () => fetch('./baby/微信图片_20251211120035_104_65.jpg', { method: 'HEAD' })
+                    .then(r => r.ok)
+                    .catch(() => false),
+                message: '可以访问图片文件夹'
+            },
+            {
+                name: 'WebGL 支持',
+                test: () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+                    } catch (e) {
+                        return false;
+                    }
+                },
+                message: '浏览器支持 WebGL'
+            },
+            {
+                name: '触摸事件支持',
+                test: () => Promise.resolve('ontouchstart' in window || navigator.maxTouchPoints > 0),
+                message: '设备支持触摸操作'
+            },
+            {
+                name: '摄像头权限检查',
+                test: () => {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        return Promise.resolve(false);
+                    }
+                    return navigator.mediaDevices.enumerateDevices()
+                        .then(devices => devices.some(d => d.kind === 'videoinput'))
+                        .catch(() => false);
+                },
+                message: '可以检测摄像头设备（需要用户授权）'
+            }
+        ];
+        
+        async function runTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>正在测试...</h2>';
+            
+            for (const testItem of tests) {
+                const div = document.createElement('div');
+                div.className = 'test-item';
+                div.innerHTML = `
+                    <strong>${testItem.name}</strong>
+                    <div class="info">测试中...</div>
+                `;
+                resultsDiv.appendChild(div);
+                
+                try {
+                    const result = await testItem.test();
+                    div.className = `test-item ${result ? 'success' : 'error'}`;
+                    div.innerHTML = `
+                        <strong>${testItem.name}</strong>
+                        <div class="info">${result ? '✅ 通过' : '❌ 失败'}</div>
+                        <div class="info">${testItem.message}</div>
+                    `;
+                } catch (error) {
+                    div.className = 'test-item error';
+                    div.innerHTML = `
+                        <strong>${testItem.name}</strong>
+                        <div class="info">❌ 错误: ${error.message}</div>
+                    `;
+                }
+            }
+            
+            // 添加总结
+            const summary = document.createElement('div');
+            summary.className = 'test-item';
+            const passed = document.querySelectorAll('.test-item.success').length;
+            const total = tests.length;
+            summary.innerHTML = `
+                <strong>测试总结</strong>
+                <div class="info">通过: ${passed}/${total}</div>
+                ${passed === total ? 
+                    '<div class="info" style="color: #4caf50;">✅ 所有测试通过！如果主页面仍无法打开，请检查控制台错误。</div>' :
+                    '<div class="info" style="color: #ff9800;">⚠️ 部分测试失败，这可能是导致问题的原因。</div>'
+                }
+            `;
+            resultsDiv.appendChild(summary);
+        }
+        
+        // 页面加载时自动运行测试
+        runTests();
+    </script>
+</body>
+</html>
+

@@ -6,7 +6,7 @@
     <title>Grand Luxury Tree - Christmas Edition</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 
     <style>
         body { 
@@ -237,6 +237,11 @@
     <div id="loader">
         <div class="spinner"></div>
         <div class="loader-text">Loading Memories & Music...</div>
+        <div id="loader-error" style="display: none; color: #ff6b6b; margin-top: 20px; font-size: 12px; text-align: center; max-width: 300px; padding: 10px;">
+            <div style="margin-bottom: 10px;">⚠️ 加载遇到问题</div>
+            <div id="error-details" style="font-size: 11px; opacity: 0.8;"></div>
+            <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: rgba(212, 175, 55, 0.3); border: 1px solid rgba(212, 175, 55, 0.6); border-radius: 4px; color: #d4af37; cursor: pointer;">重新加载</button>
+        </div>
     </div>
     
     <div id="msg-box"></div>
@@ -793,6 +798,22 @@
 
             animate();
         }
+
+        // 全局错误处理
+        window.addEventListener('error', (e) => {
+            console.error('全局错误:', e);
+            const loaderError = document.getElementById('loader-error');
+            const errorDetails = document.getElementById('error-details');
+            if (loaderError && errorDetails) {
+                loaderError.style.display = 'block';
+                errorDetails.textContent = `错误: ${e.message || '未知错误'} (${e.filename || ''}:${e.lineno || ''})`;
+            }
+        });
+
+        // 资源加载失败处理
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('未处理的 Promise 拒绝:', e.reason);
+        });
 
         function loadPresetMusic() {
             if (CONFIG.presetMusic.length === 0) {
